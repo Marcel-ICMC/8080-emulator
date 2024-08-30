@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -55,7 +56,7 @@ char *GetRegisterPair(unsigned char reg) {
         case 0x02:
             return "H-L";
         case 0x03:
-            return "SP";
+            return "PSW";
     }
 
     return "\0";
@@ -74,42 +75,52 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc) {
         printf("MOV    %c,%c", dest_reg, source_reg);
 
         if (dest_reg == 'M' || source_reg == 'M') {
-            opbytes = 2;
+            return 2;
         }
-        return opbytes;
+        return 1;
     }
 
+    char reg = GetRegister(*code & 0x07);
+
+    bool f8_exp = false;
     switch (*code & 0xf8) {
-        char reg = GetRegister(*code & 0x07);
-        if (reg == 'M') {
-            opbytes = 2;
-        }
         case 0x80:
             printf("ADD    %c", reg);
-            return opbytes;
+            f8_exp = true;
+            break;
         case 0x90:
             printf("SUB    %c", reg);
-            return opbytes;
+            f8_exp = true;
+            break;
         case 0x98:
             printf("SBB    %c", reg);
-            return opbytes;
+            f8_exp = true;
+            break;
         case 0xa0:
             printf("ANA    %c", reg);
-            return opbytes;
+            f8_exp = true;
+            break;
         case 0xa8:
             printf("XRA    %c", reg);
-            return opbytes;
+            f8_exp = true;
+            break;
         case 0xb0:
             printf("ORA    %c", reg);
-            return opbytes;
+            f8_exp = true;
+            break;
         case 0xb8:
             printf("CMP    %c", reg);
-            return opbytes;
+            f8_exp = true;
+            break;
     }
 
-    opbytes = 1;
+    if (f8_exp) {
+        if (reg == 'M')
+            return 2;
+        return 1;
+    }
+    char *condition = GetCondition(*code & 0x38);
     switch (*code & 0xc7) {
-        char *condition = GetCondition(*code & 0x38);
         case 0xc2:
             printf("J%s", condition);
             return 3;
@@ -118,16 +129,10 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc) {
             return 3;
     }
 
-    // if (*code == 0xf5) {
-    //    printf("%x\n", *code & 0xCF);
-    //    printf("%x = %s\n", *code & 0x30, GetRegisterPair(*code & 0x30) >>
-    //    4));
-    //  }
+    char *reg_pair = GetRegisterPair((*code & 0x30) >> 4);
     switch (*code & 0xCF) {
-        char *reg_pair = GetRegisterPair((*code & 0x30) >> 4);
-        printf("%s\n", reg_pair);
         case 0xC1:
-            printf("POP %s", );
+            printf("POP %s", reg_pair);
             return opbytes;
         case 0xC5:
             printf("PUSH %s", reg_pair);
@@ -356,7 +361,6 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc) {
             /* ........ */
     }
 
-    printf("\n");
     return opbytes;
 }
 
@@ -379,6 +383,7 @@ int main(int argc, char **argv) {
     int pc = 0;
     while (pc < fsize) {
         pc += Disassemble8080Op(buffer, pc);
+        printf("\n");
     }
     return 0;
 }
