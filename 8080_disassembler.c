@@ -67,6 +67,7 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc) {
     int opbytes = 1;
 
     printf("%04x ", pc);
+    printf("%02x ", *code);
     if ((*code & 0xc0) == 0x40) {
         char dest_reg = GetRegister((*code & 0x38) >> 3);
         char source_reg = GetRegister(*code & 0x07);
@@ -118,15 +119,21 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc) {
             opbytes = 2;
         opbytes = 1;
     }
-    char *condition = GetCondition(*code & 0x38);
+    char *condition = GetCondition((*code & 0x38) >> 3);
     switch (*code & 0xc7) {
-        case 0xc2:
-            printf("J%s", condition);
+        case 0x84:
+            printf("C%s #$%02x%02x", condition, code[2], code[1]);
             opbytes = 3;
             break;
-        case 0x84:
-            printf("C%s", condition);
+        case 0xc0:
+            printf("R%s", condition);
+            break;
+        case 0xc2:
+            printf("J%s #$%02x%02x", condition, code[2], code[1]);
             opbytes = 3;
+            break;
+        case 0xc7:
+            printf("RST %d", (*code & 0x38) >> 3);
             break;
     }
 
@@ -330,7 +337,7 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc) {
             printf("DAD   SP");
             break;
         case 0x3a:
-            printf("LDA  adr,#$%02x%02x", code[2], code[1]);
+            printf("LDA  addr,#$%02x%02x", code[2], code[1]);
             opbytes = 3;
             break;
         case 0x3b:
@@ -349,6 +356,9 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc) {
         case 0x3f:
             printf("CMC");
             break;
+        case 0x76:
+            printf("HTL");
+            break;
         case 0xc0:
             printf("RNZ");
             break;
@@ -356,10 +366,82 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc) {
             printf("JMP    $%02x%02x", code[2], code[1]);
             opbytes = 3;
             break;
-        case 0x76:
-            printf("HTL");
+        case 0xc6:
+            printf("ADI $%02x", code[1]);
             break;
-            /* ........ */
+        case 0xc9:
+            printf("RET");
+            break;
+        case 0xcb:
+            printf("NOP");
+            break;
+        case 0xcd:
+            printf("CALL    $%02x%02x", code[2], code[1]);
+            opbytes = 3;
+            break;
+        case 0xce:
+            printf("ACI     $%02x", code[1]);
+            opbytes = 2;
+            break;
+        case 0xd3:
+            printf("OUT     %02x", code[1]);
+            opbytes = 2;
+            break;
+        case 0xd6:
+            printf("SUI     %02x", code[1]);
+            opbytes = 2;
+            break;
+        case 0xdb:
+            printf("IN      %02x", code[1]);
+            opbytes = 2;
+            break;
+        case 0xdd:
+            printf("NOP");
+            break;
+        case 0xde:
+            printf("SBI     %02x", code[1]);
+            opbytes = 2;
+            break;
+        case 0xe3:
+            printf("XTHL");
+            break;
+        case 0xe6:
+            printf("ANI     %02x", code[1]);
+            opbytes = 2;
+            break;
+        case 0xe9:
+            printf("PCHL");
+            break;
+        case 0xeb:
+            printf("XCHG");
+            break;
+        case 0xed:
+            printf("NOP");
+            break;
+        case 0xee:
+            printf("XRI     %02x", code[1]);
+            opbytes = 2;
+            break;
+        case 0xf3:
+            printf("DI");
+            break;
+        case 0xf6:
+            printf("ORI     %02x", code[1]);
+            opbytes = 2;
+            break;
+        case 0xf9:
+            printf("SPHL");
+            break;
+        case 0xfb:
+            printf("EI");
+            break;
+        case 0xfd:
+            printf("NOP");
+            break;
+        case 0xfe:
+            printf("CPI     %02x", code[1]);
+            opbytes = 2;
+            break;
     }
 
     printf("\n");
