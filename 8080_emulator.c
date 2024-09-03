@@ -28,7 +28,19 @@ typedef struct State8080 {
 } State8080;
 
 void UnimplementedInstruction(State8080 *state) {
-    printf("Error: Unimplemented instruction\n");
+    printf("\n[Error]: Unimplemented instruction\n");
+    printf("state = {\n");
+    printf("\ta: %u\n", state->a);
+    printf("\tb: %u\n", state->b);
+    printf("\tc: %u\n", state->c);
+    printf("\td: %u\n", state->d);
+    printf("\te: %u\n", state->e);
+    printf("\th: %u\n", state->h);
+    printf("\tl: %u\n", state->l);
+    printf("\tpc: %u\n", state->pc);
+    printf("\tsp: %u\n", state->sp);
+    printf("}\n");
+
     exit(1);
 }
 
