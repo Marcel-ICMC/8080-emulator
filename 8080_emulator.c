@@ -37,13 +37,13 @@ void UnimplementedInstruction(State8080 *state) {
     Disassemble8080Op(state->memory, state->pc);
 
     printf("state = {\n");
-    printf("\ta: %u\n", state->a);
-    printf("\tb: %u\n", state->b);
-    printf("\tc: %u\n", state->c);
-    printf("\td: %u\n", state->d);
-    printf("\te: %u\n", state->e);
-    printf("\th: %u\n", state->h);
-    printf("\tl: %u\n", state->l);
+    printf("\ta: %02x\n", state->a);
+    printf("\tb: %02x\n", state->b);
+    printf("\tc: %02x\n", state->c);
+    printf("\td: %02x\n", state->d);
+    printf("\te: %02x\n", state->e);
+    printf("\th: %02x\n", state->h);
+    printf("\tl: %02x\n", state->l);
     printf("\tpc: %04x\n", state->pc);
     printf("\tsp: %04x\n", state->sp);
     printf("}\n");
@@ -60,10 +60,10 @@ void ExecuteNextInstruction8080(State8080 *state) {
     switch (*opcode) {
         case 0x00: // NOP	1
             break;
-        case 0x01: // LXI B,D16	3		B <- byte 3, C <- byte 2
+        case 0x01: // LXI B,D16
             state->c = opcode[1];
             state->b = opcode[2];
-            state->pc += 2; // Advance 2 more bytes
+            state->pc += 2;
             break;
         case 0x02: // STAX B	1		(BC) <- A
             UnimplementedInstruction(state);
@@ -99,8 +99,11 @@ void ExecuteNextInstruction8080(State8080 *state) {
             UnimplementedInstruction(state);
         case 0x10: // -
             UnimplementedInstruction(state);
-        case 0x11: // LXI D,D16	3		D <- byte 3, E <- byte 2
-            UnimplementedInstruction(state);
+        case 0x11: // LXI D,D16
+            state->e = opcode[1];
+            state->d = opcode[2];
+            state->pc += 2;
+            break;
         case 0x12: // STAX D	1		(DE) <- A
             UnimplementedInstruction(state);
         case 0x13: // INX D	1		DE <- DE + 1
@@ -118,8 +121,9 @@ void ExecuteNextInstruction8080(State8080 *state) {
             UnimplementedInstruction(state);
         case 0x19: // DAD D	1	CY	HL = HL + DE
             UnimplementedInstruction(state);
-        case 0x1a: // LDAX D	1		A <- (DE)
-            UnimplementedInstruction(state);
+        case 0x1a: // LDAX D
+            state->a = state->memory[((state->d << 8) | state->e)];
+            break;
         case 0x1b: // DCX D	1		DE = DE-1
             UnimplementedInstruction(state);
         case 0x1c: // INR E	1	Z, S, P, AC	E <-E+1
@@ -133,8 +137,11 @@ void ExecuteNextInstruction8080(State8080 *state) {
             UnimplementedInstruction(state);
         case 0x20: // -
             UnimplementedInstruction(state);
-        case 0x21: // LXI H,D16	3		H <- byte 3, L <- byte 2
-            UnimplementedInstruction(state);
+        case 0x21: // LXI H,D16
+            state->l = opcode[1];
+            state->h = opcode[2];
+            state->pc += 2;
+            break;
         case 0x22: // SHLD adr	3		(adr) <-L; (adr+1)<-H
             UnimplementedInstruction(state);
         case 0x23: // INX H	1		HL <- HL + 1
@@ -484,8 +491,15 @@ void ExecuteNextInstruction8080(State8080 *state) {
         case 0xcc: // CZ adr	3		if Z, CALL adr
             UnimplementedInstruction(state);
         case 0xcd: // CALL adr	3
-                   // (SP-1)<-PC.hi;(SP-2)<-PC.lo;SP<-SP-2;PC=adr
-            UnimplementedInstruction(state);
+        {
+            uint16_t ret = state->pc + 2;
+            state->memory[state->sp - 1] = (uint8_t)ret >> 8;
+            state->memory[state->sp - 2] = (uint8_t)ret;
+            state->sp -= 2;
+
+            state->pc = ((uint16_t)opcode[2] << 8) | opcode[1];
+            break;
+        }
         case 0xce: // ACI D8	2	Z, S, P, CY, AC	A <- A + data + CY
             UnimplementedInstruction(state);
         case 0xcf: // RST 1	1		CALL $8
