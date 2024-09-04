@@ -2,6 +2,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "8080_disassembler.h"
 
 typedef struct ConditionCodes {
     uint8_t z : 1;
@@ -29,6 +32,10 @@ typedef struct State8080 {
 
 void UnimplementedInstruction(State8080 *state) {
     printf("\n[Error]: Unimplemented instruction\n");
+
+    state->pc--;
+    Disassemble8080Op(state->memory, state->pc);
+
     printf("state = {\n");
     printf("\ta: %u\n", state->a);
     printf("\tb: %u\n", state->b);
@@ -37,8 +44,8 @@ void UnimplementedInstruction(State8080 *state) {
     printf("\te: %u\n", state->e);
     printf("\th: %u\n", state->h);
     printf("\tl: %u\n", state->l);
-    printf("\tpc: %u\n", state->pc);
-    printf("\tsp: %u\n", state->sp);
+    printf("\tpc: %04x\n", state->pc);
+    printf("\tsp: %04x\n", state->sp);
     printf("}\n");
 
     exit(1);
@@ -47,7 +54,9 @@ void UnimplementedInstruction(State8080 *state) {
 void ExecuteNextInstruction8080(State8080 *state) {
     unsigned char *opcode = &state->memory[state->pc];
 
-    printf("%02x ", (uint8_t) *opcode);
+    state->pc++;
+
+    printf("%02x ", (uint8_t)*opcode);
     switch (*opcode) {
         case 0x00: // NOP	1
             break;
@@ -64,8 +73,10 @@ void ExecuteNextInstruction8080(State8080 *state) {
             UnimplementedInstruction(state);
         case 0x05: // DCR B	1	Z, S, P, AC	B <- B-1
             UnimplementedInstruction(state);
-        case 0x06: // MVI B, D8	2		B <- byte 2
-            UnimplementedInstruction(state);
+        case 0x06: // MVI B, D8
+            state->b = opcode[1];
+            state->pc++;
+            break;
         case 0x07: // RLC	1	CY	A = A << 1; bit 0 = prev bit 7;
                    // CY = prev bit 7
             UnimplementedInstruction(state);
@@ -154,9 +165,10 @@ void ExecuteNextInstruction8080(State8080 *state) {
             UnimplementedInstruction(state);
         case 0x30: // -
             UnimplementedInstruction(state);
-        case 0x31: // LXI SP, D16	3		SP.hi <- byte 3, SP.lo
-                   // <- byte 2
-            UnimplementedInstruction(state);
+        case 0x31: // LXI SP, D16
+            state->sp = ((uint16_t)opcode[2] << 8) | opcode[1];
+            state->pc += 2;
+            break;
         case 0x32: // STA adr	3		(adr) <- A
             UnimplementedInstruction(state);
         case 0x33: // INX SP	1		SP = SP + 1
@@ -449,7 +461,8 @@ void ExecuteNextInstruction8080(State8080 *state) {
         case 0xc2: // JNZ adr	3		if NZ, PC <- adr
             UnimplementedInstruction(state);
         case 0xc3: // JMP adr	3		PC <= adr
-            UnimplementedInstruction(state);
+            state->pc = ((uint16_t)opcode[2] << 8) | opcode[1];
+            break;
         case 0xc4: // CNZ adr	3		if NZ, CALL adr
             UnimplementedInstruction(state);
         case 0xc5: // PUSH B	1		(sp-2)<-C; (sp-1)<-B; sp <- sp -
@@ -580,13 +593,21 @@ void ExecuteNextInstruction8080(State8080 *state) {
         case 0xff: // RST 7	1		CALL $38
             UnimplementedInstruction(state);
     }
-    state->pc += 1;
 }
 
 void Emulate(State8080 *state) {
     while (true) {
         ExecuteNextInstruction8080(state);
     }
+}
+
+int Disassemble(uint8_t *buffer, int size) {
+    int pc = 0;
+    while (pc < size) {
+        pc += Disassemble8080Op(buffer, pc);
+    }
+
+    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -600,13 +621,16 @@ int main(int argc, char **argv) {
     int fsize = ftell(f);
     fseek(f, 0L, SEEK_SET);
 
-    struct State8080 *state = (State8080 *) malloc(sizeof(State8080));
+    struct State8080 *state = (State8080 *)malloc(sizeof(State8080));
     state->memory = malloc(fsize);
 
     fread(state->memory, 1, fsize, f);
     fclose(f);
 
-    Emulate(state);
-
+    if (argc >= 3 && strcmp(argv[2], "--disassemble") == 0) {
+        Disassemble(state->memory, fsize);
+    } else {
+        Emulate(state);
+    }
     return 0;
 }
